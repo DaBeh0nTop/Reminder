@@ -3,353 +3,322 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Email:Pass Multi-File Grabber — Local Only + ZIP Export</title>
-<!-- JSZip + FileSaver (client-side ZIP) -->
+<title>Email:Pass Grabber — Clean & Strict</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <style>
   :root{
-    --bg:#071024; --card:#07162a; --muted:#97a6c0; --neon:#4ff1d6; --neon-2:#6b5cff;
-    --good:#8be78b; --bad:#ff7a7a;
-    font-family: Inter, Poppins, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    --bg:#0a0f1c; --panel:#0e1627; --ink:#e9f0ff; --muted:#97a6c0;
+    --neon:#4ff1d6; --neon2:#6b5cff; --line:rgba(255,255,255,0.06);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
   }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:
-    radial-gradient(1000px 600px at 10% 20%, rgba(111,48,255,0.07), transparent 6%),
-    radial-gradient(900px 500px at 95% 80%, rgba(79,209,197,0.03), transparent 6%),
-    linear-gradient(180deg,#020617 0%, #071024 100%);
-    color:#e6eef6;display:flex;align-items:flex-start;justify-content:center;padding:28px}
-  .wrap{width:100%;max-width:1180px}
-  header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
-  h1{margin:0;font-size:20px;letter-spacing:0.2px}
-  p.lead{margin:0;color:var(--muted);font-size:13px}
-  .grid{display:grid;grid-template-columns:380px 1fr;gap:16px}
-  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.7);border:1px solid rgba(255,255,255,0.03)}
-  .drop{border:2px dashed rgba(255,255,255,0.03);padding:18px;border-radius:10px;text-align:center;cursor:pointer;transition:all .15s;user-select:none}
-  .drop.dragover{background:linear-gradient(90deg, rgba(79,209,197,0.03), rgba(107,92,255,0.02));transform:translateY(-3px)}
-  .muted{color:var(--muted);font-size:13px}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  body{margin:0;min-height:100vh;background:linear-gradient(180deg,#060b16, #0a0f1c 60%, #0a1324 100%);color:var(--ink);display:flex;justify-content:center;padding:20px}
+  .wrap{width:100%;max-width:1100px;display:grid;grid-template-columns:360px 1fr;gap:16px}
+  header{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+  h1{margin:0;font-size:18px;font-weight:800;letter-spacing:.2px}
+  .badge{margin-left:auto;background:linear-gradient(90deg,var(--neon),var(--neon2));color:#031216;padding:6px 10px;border-radius:999px;font-weight:900}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(3,8,23,.5);padding:14px}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;cursor:pointer;user-select:none}
+  .drop.drag{background:linear-gradient(90deg,rgba(79,241,214,.06),rgba(107,92,255,.05))}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{background:var(--neon);color:#042428;border:none;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .btn.sm{padding:6px 10px;font-size:13px}
+  .muted{color:var(--muted);font-size:12px}
+  .bar{height:8px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden}
+  .prog{height:100%;background:linear-gradient(90deg,var(--neon),var(--neon2));width:0%}
+  .list{max-height:120px;overflow:auto;border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
+  .file{font-size:12px;color:var(--muted)}
+  .file strong{color:var(--neon)}
+  .chip{background:rgba(255,255,255,.04);border:1px solid var(--line);padding:6px 8px;border-radius:8px;font-size:12px;color:var(--muted)}
+  .results{display:flex;flex-direction:column;gap:10px}
+  .box{border:1px solid var(--line);border-radius:10px;padding:10px;min-height:220px;max-height:520px;overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
+  .pair{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+  .left{display:flex;align-items:center;gap:10px;min-width:0}
+  .email{font-family:monospace;font-weight:900;color:var(--neon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pass{font-family:monospace;font-weight:800;color:var(--neon2)}
+  .iconbtn{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:8px;padding:6px 8px;cursor:pointer;font-size:12px}
+  .footer{display:flex;justify-content:space-between;align-items:center}
+  @media (max-width:1000px){ .wrap{grid-template-columns:1fr} }
   input[type=file]{display:none}
-  .btn{background:var(--neon);color:#032828;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700;box-shadow:0 6px 18px rgba(79,209,197,0.08)}
-  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);box-shadow:none}
-  .small{font-size:13px;padding:8px 10px}
-  .row{display:flex;gap:10px;align-items:center;margin-top:12px}
-  .cols{display:flex;gap:8px}
-  .toggle{display:flex;align-items:center;gap:8px}
-  .badge{background:linear-gradient(90deg,var(--neon),var(--neon-2));padding:6px 10px;border-radius:999px;color:#021115;font-weight:800;box-shadow:0 6px 18px rgba(79,209,197,0.12)}
-  .counter{font-size:18px}
-  .progresswrap{height:10px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
-  .progress{height:100%;background:linear-gradient(90deg,var(--neon),var(--neon-2));width:0%;transition:width .24s ease}
-  .results{display:flex;flex-direction:column;gap:12px}
-  .neon-box{background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);min-height:180px;max-height:520px;overflow:auto}
-  .pair{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.008), transparent);border:1px solid rgba(255,255,255,0.02)}
-  .pair .left{display:flex;gap:12px;align-items:center;min-width:0}
-  .neon-email{font-weight:800;letter-spacing:0.3px;color:var(--neon);text-shadow:0 2px 12px rgba(79,209,197,0.12);font-family:monospace;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .neon-pass{font-weight:700;color:var(--neon-2);text-shadow:0 2px 8px rgba(107,92,255,0.08);font-family:monospace;margin-left:6px}
-  .actions-inline{display:flex;gap:8px;align-items:center}
-  .chip{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:8px;font-size:13px;color:var(--muted);border:1px solid rgba(255,255,255,0.02)}
-  .status.valid{color:var(--good);font-weight:800}
-  .status.invalid{color:var(--bad);font-weight:800}
-  .controls-bottom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .iconbtn{background:transparent;border:1px dashed rgba(255,255,255,0.03);padding:6px 8px;border-radius:8px;color:var(--muted);cursor:pointer}
-  .sticky-footer{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(7,16,36,0.35), transparent);padding-top:8px;margin-top:6px}
-  .muted-sm{font-size:12px;color:var(--muted)}
-  .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  .empty{color:var(--muted);text-align:center;padding:28px 0}
-  @media (max-width:980px){ .grid{grid-template-columns:1fr;gap:12px} }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Email:Pass Multi-File Grabber</h1>
-      <p class="lead">Local-only. Multi-file select/drag — play/stop — neon results — ZIP export with pairs & errors.</p>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
-      <div class="badge counter" id="totalCount">0</div>
-    </div>
-  </header>
+  <div class="wrap">
+    <header>
+      <h1>Email:Pass Grabber</h1>
+      <span class="badge" id="total">0</span>
+    </header>
 
-  <div class="grid">
-    <!-- LEFT: Controls -->
-    <div class="card">
-      <div class="muted-sm" style="margin-bottom:10px">Drop multiple text/CSV/log files or click below. Processing happens in your browser only.</div>
-
-      <label class="drop" id="dropzone">
-        <input id="fileinput" type="file" accept=".txt,.log,.csv,text/plain" multiple />
-        <div>
-          <div style="font-weight:800;font-size:15px">Click or drop files anywhere</div>
-          <div class="muted" style="margin-top:8px">Understands <code>email:pass</code>, <code>email = pass</code>, CSV (email/password columns), JSON-ish, tabs, dashes, etc.</div>
-        </div>
+    <!-- LEFT -->
+    <section class="card">
+      <label class="drop" id="drop">
+        <input id="files" type="file" accept=".txt,.log,.csv,text/plain" multiple />
+        <div><strong>Click or Drop Files</strong><div class="muted" style="margin-top:6px">Local-only • Multi-file</div></div>
       </label>
 
-      <div class="row">
-        <label style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="confirmCheckbox" />
-          <span class="muted">I confirm these files are mine or I have permission to process them</span>
-        </label>
+      <div class="row" style="margin-top:8px">
+        <label class="muted"><input id="ok" type="checkbox"> I own or have permission to process these files</label>
       </div>
 
-      <div class="row" style="margin-top:12px">
-        <button class="btn small" id="playBtn">▶ Play</button>
-        <button class="btn small ghost" id="stopBtn" disabled>■ Stop</button>
-        <button class="btn small ghost" id="clearBtn">Clear All</button>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm" id="play">▶ Play</button>
+        <button class="btn sm ghost" id="stop" disabled>■ Stop</button>
+        <button class="btn sm ghost" id="clear">Clear</button>
       </div>
 
-      <div class="row" style="margin-top:12px;align-items:center">
-        <div style="width:100%">
-          <div class="muted-sm">Overall progress</div>
-          <div class="progresswrap" style="margin-top:6px">
-            <div class="progress" id="overallProgress"></div>
-          </div>
+      <div style="margin-top:8px">
+        <div class="bar"><div class="prog" id="prog"></div></div>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <label class="muted"><input id="onlyValid" type="checkbox"> Only valid emails</label>
+        <label class="muted"><input id="mask" type="checkbox" checked> Mask passwords</label>
+        <label class="muted"><input id="dedupe" type="checkbox" checked> Pro de-dupe</label>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm" id="dlTxt">Download TXT</button>
+        <button class="btn sm" id="dlCsv">Export CSV</button>
+        <button class="btn sm" id="dlZip">ZIP (pairs + errors)</button>
+        <button class="btn sm ghost" id="copyAll">Copy All</button>
+      </div>
+
+      <div class="list" id="queue"></div>
+    </section>
+
+    <!-- RIGHT -->
+    <section class="card results">
+      <div class="row" style="justify-content:space-between">
+        <div class="muted">Grabbed</div>
+        <div class="row">
+          <span class="chip" id="validC">Valid: 0</span>
+          <span class="chip" id="invalidC">Invalid: 0</span>
         </div>
       </div>
 
-      <div class="row" style="margin-top:12px;align-items:center;justify-content:space-between">
-        <div class="cols">
-          <label class="toggle"><input type="checkbox" id="onlyValid" /> <span class="muted">Only valid emails</span></label>
-          <label class="toggle"><input type="checkbox" id="maskPass" checked /> <span class="muted">Mask passwords</span></label>
-          <label class="toggle"><input type="checkbox" id="removeDup" checked /> <span class="muted">Remove duplicates</span></label>
+      <div class="box" id="box"><div class="muted" id="empty">No pairs yet.</div></div>
+
+      <div class="footer">
+        <div class="muted">Output enforced: <code>email:pass</code> (pass = letters+numbers only)</div>
+        <div class="row">
+          <button class="iconbtn" id="selectAll">Select all</button>
+          <button class="iconbtn" id="deselectAll">Deselect</button>
+          <button class="iconbtn" id="removeSel">Remove selected</button>
         </div>
       </div>
-
-      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
-        <button class="btn small" id="downloadAllTXT">Download TXT</button>
-        <button class="btn small" id="exportCSV">Export CSV</button>
-        <button class="btn small" id="downloadZIP">Download ZIP (pairs + errors)</button>
-        <button class="btn small ghost" id="copyAll">Copy All</button>
-      </div>
-
-      <div class="hint">Errors (unpaired/malformed) will be listed in <code>errors.txt</code> inside the ZIP.</div>
-
-      <div style="margin-top:12px">
-        <div class="muted-sm">Files queued: <span id="filesQueued">0</span></div>
-        <div id="fileList" style="margin-top:8px;max-height:140px;overflow:auto"></div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Results -->
-    <div class="card results">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-weight:800">Grabbed Pairs</div>
-          <div class="muted-sm">Live neon list — remove rows or toggle mask.</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="chip" id="validCount">Valid: 0</div>
-          <div class="chip" id="invalidCount">Invalid: 0</div>
-        </div>
-      </div>
-
-      <div class="neon-box" id="neonBox">
-        <div class="empty" id="emptyNotice">No pairs yet — add files and hit Play.</div>
-      </div>
-
-      <div class="sticky-footer">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div class="muted-sm">Parsed pairs are stored locally in memory only.</div>
-          <div class="controls-bottom">
-            <button class="iconbtn" id="selectAll">Select all</button>
-            <button class="iconbtn" id="deselectAll">Deselect</button>
-            <button class="iconbtn" id="removeSelected">Remove selected</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
   </div>
-</div>
 
 <script>
-/* ================== State & DOM ================== */
-const drop = document.getElementById('dropzone');
-const fileinput = document.getElementById('fileinput');
-const playBtn = document.getElementById('playBtn');
-const stopBtn = document.getElementById('stopBtn');
-const clearBtn = document.getElementById('clearBtn');
-const downloadAllTXT = document.getElementById('downloadAllTXT');
-const exportCSV = document.getElementById('exportCSV');
-const downloadZIP = document.getElementById('downloadZIP');
-const copyAll = document.getElementById('copyAll');
-const confirmCheckbox = document.getElementById('confirmCheckbox');
-const overallProgress = document.getElementById('overallProgress');
-const fileListEl = document.getElementById('fileList');
-const filesQueuedEl = document.getElementById('filesQueued');
-const neonBox = document.getElementById('neonBox');
-const emptyNotice = document.getElementById('emptyNotice');
-const totalCount = document.getElementById('totalCount');
-const validCountEl = document.getElementById('validCount');
-const invalidCountEl = document.getElementById('invalidCount');
+/* ===== DOM ===== */
+const filesEl = document.getElementById('files');
+const drop = document.getElementById('drop');
+const ok = document.getElementById('ok');
+const play = document.getElementById('play');
+const stopBtn = document.getElementById('stop');
+const clearBtn = document.getElementById('clear');
+const prog = document.getElementById('prog');
+const queueEl = document.getElementById('queue');
 const onlyValid = document.getElementById('onlyValid');
-const maskPass = document.getElementById('maskPass');
-const removeDup = document.getElementById('removeDup');
+const mask = document.getElementById('mask');
+const dedupeChk = document.getElementById('dedupe');
+const dlTxt = document.getElementById('dlTxt');
+const dlCsv = document.getElementById('dlCsv');
+const dlZip = document.getElementById('dlZip');
+const copyAll = document.getElementById('copyAll');
+const total = document.getElementById('total');
+const box = document.getElementById('box');
+const empty = document.getElementById('empty');
+const validC = document.getElementById('validC');
+const invalidC = document.getElementById('invalidC');
 const selectAllBtn = document.getElementById('selectAll');
 const deselectAllBtn = document.getElementById('deselectAll');
-const removeSelectedBtn = document.getElementById('removeSelected');
+const removeSelBtn = document.getElementById('removeSel');
 
-let queuedFiles = [];      // File[]
-let processing = false;
-let stopRequested = false;
-let pairs = [];            // {id,email,pass,valid,selected,source}
-let errors = [];           // {source,line,content,reason}
-let idSeq = 1;
+/* ===== State ===== */
+let q = [];                  // File[]
+let running = false, stopReq=false;
+let pairs = [];              // {id,email,pass,valid,selected,source}
+let errors = [];             // {source,line,content,reason}
+let seq = 1;
 
-/* ================== Regex & Helpers ================== */
-// email core
-const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-// broad pair grab (handles colon/dash/comma/semicolon/equals & optional quotes)
-const PAIR_RE = /(["']?)\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\1\s*(?:(?::|=|-|,|;)|(?:\s*:\s*))\s*(["']?)([^\r\n"']+?)\3/gm;
-// CSV header detection
-const CSV_HEADER_RE = /(^|,|\t|\s)(email|e-mail|username)\b.*(,|\t|\s)(pass(word)?|pwd)\b/i;
-
-// minimal validator
+/* ===== Utils ===== */
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 function isValidEmail(e){ return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/i.test(e); }
-function mask(s){ return s ? '•'.repeat(Math.min(12, s.length)) + (s.length>12 ? '…' : '') : ''; }
-function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function maskPass(s){ return s ? '•'.repeat(Math.min(12,s.length)) + (s.length>12 ? '…' : '') : ''; }
 
-function renderFileList(){
-  fileListEl.innerHTML = '';
-  filesQueuedEl.textContent = queuedFiles.length;
-  for(const f of queuedFiles){
-    const div = document.createElement('div');
-    div.className = 'muted-sm';
-    div.innerHTML = `<strong style="color:var(--neon)">${esc(f.name)}</strong> — ${Math.round(f.size/1024)} KB <span style="float:right" id="status-${f._id}">queued</span>`;
-    fileListEl.appendChild(div);
+/* Pro email normalization for dedupe */
+function normEmail(email){
+  let [local, domain] = email.toLowerCase().split('@');
+  if(!domain) return email.toLowerCase();
+  if(domain === 'gmail.com' || domain === 'googlemail.com'){
+    local = local.replace(/\./g,'').replace(/\+.*/,''); // dots ignored, remove +tag
+    domain = 'gmail.com';
+  } else if (/(outlook|hotmail|live)\.com$/.test(domain)){
+    local = local.replace(/\+.*/,''); // plus tags common
   }
+  return `${local}@${domain}`;
 }
-function renderCounts(){
-  totalCount.textContent = pairs.length;
-  const valid = pairs.filter(p=>p.valid).length;
-  validCountEl.textContent = 'Valid: ' + valid;
-  invalidCountEl.textContent = 'Invalid: ' + (pairs.length - valid);
+function keyFor(p){ return `${normEmail(p.email)}|${p.pass}`; }
+
+function renderQueue(){
+  queueEl.innerHTML = q.map(f=>`<div class="file"><strong>${esc(f.name)}</strong> — ${Math.round(f.size/1024)} KB <span style="float:right" id="st-${f._id}">queued</span></div>`).join('');
 }
-function renderNeon(){
-  neonBox.innerHTML = '';
-  const showOnlyValid = onlyValid.checked;
-  const masked = maskPass.checked;
-  const list = pairs.filter(p => !showOnlyValid || p.valid);
-  if(list.length === 0){ neonBox.appendChild(emptyNotice); return; }
+function counts(){
+  total.textContent = pairs.length;
+  const v = pairs.filter(x=>x.valid).length;
+  validC.textContent = 'Valid: ' + v;
+  invalidC.textContent = 'Invalid: ' + (pairs.length - v);
+}
+function render(){
+  box.innerHTML = '';
+  const showValid = onlyValid.checked;
+  const list = pairs.filter(p => !showValid || p.valid);
+  if(list.length === 0){ box.appendChild(empty); return; }
   for(const p of list){
-    const row = document.createElement('div'); row.className = 'pair'; row.dataset.id = p.id;
-    const left = document.createElement('div'); left.className = 'left';
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!p.selected; cb.addEventListener('change', ()=> p.selected = cb.checked);
-    const eSpan = document.createElement('div'); eSpan.className = 'neon-email'; eSpan.title = p.email; eSpan.textContent = p.email;
-    const pSpan = document.createElement('div'); pSpan.className = 'neon-pass'; pSpan.title = p.pass; pSpan.textContent = masked ? mask(p.pass) : p.pass;
-    left.append(cb, eSpan, pSpan);
-    const right = document.createElement('div'); right.className = 'actions-inline';
-    const status = document.createElement('div'); status.className = 'chip status ' + (p.valid ? 'valid' : 'invalid'); status.textContent = p.valid ? 'VALID' : 'INVALID';
-    const copyBtn = document.createElement('button'); copyBtn.className='iconbtn'; copyBtn.textContent='Copy';
-    copyBtn.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(`${p.email}:${p.pass}`); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy',900);}catch{alert('Copy failed');}});
+    const row = document.createElement('div'); row.className='pair'; row.dataset.id=p.id;
+    const left = document.createElement('div'); left.className='left';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=!!p.selected; cb.addEventListener('change', ()=> p.selected = cb.checked);
+    const e = document.createElement('div'); e.className='email'; e.textContent=p.email;
+    const ps = document.createElement('div'); ps.className='pass'; ps.textContent = mask.checked ? maskPass(p.pass) : p.pass;
+    left.append(cb,e,ps);
+    const right = document.createElement('div'); right.className='row';
+    const copy = document.createElement('button'); copy.className='iconbtn'; copy.textContent='Copy';
+    copy.onclick = async ()=>{ try{ await navigator.clipboard.writeText(`${p.email}:${p.pass}`); copy.textContent='Copied'; setTimeout(()=>copy.textContent='Copy',900);}catch{alert('Copy failed');}};
     const rm = document.createElement('button'); rm.className='iconbtn'; rm.textContent='Remove';
-    rm.addEventListener('click', ()=>{ pairs = pairs.filter(x=>x.id!==p.id); if(removeDup.checked) dedupe(); renderNeon(); renderCounts(); });
-    right.append(status, copyBtn, rm);
-    row.append(left, right);
-    neonBox.appendChild(row);
+    rm.onclick = ()=>{ pairs = pairs.filter(x=>x.id!==p.id); if(dedupeChk.checked) dedupe(); counts(); render(); };
+    right.append(copy,rm);
+    row.append(left,right);
+    box.appendChild(row);
   }
 }
-function dedupe(){
-  const seen = new Set(); const out = [];
-  for(const p of pairs){
-    const k = `${p.email.toLowerCase()}|${p.pass}`;
-    if(!seen.has(k)){ seen.add(k); out.push(p); }
-  }
-  pairs = out;
-}
 
-/* ================== Queue & File IO ================== */
-drop.addEventListener('click', ()=> fileinput.click());
-drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
-drop.addEventListener('dragleave', e => { e.preventDefault(); drop.classList.remove('dragover'); });
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); addFiles([...e.dataTransfer.files||[]]); });
-fileinput.addEventListener('change', e => addFiles([...e.target.files]));
+/* Strict grab: only email:pass where pass = [A-Za-z0-9]+, no prefixes like "623." and trims trailing junk. */
+const STRICT_LINE = /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\s*[:=]\s*([A-Za-z0-9]+)/g;
+/* also accept spaced colon "email : pass" */
+const STRICT_LINE_SP = /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\s*:\s*([A-Za-z0-9]+)/g;
 
-function addFiles(arr){
-  for(const f of arr){ f._id = Math.random().toString(36).slice(2,10) + Date.now().toString(36); queuedFiles.push(f); }
-  renderFileList();
-}
-function readText(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(file); }); }
-
-/* ================== Parsing (“do my thing”) ================== */
-// Strategy:
-// 1) Global sweep with PAIR_RE (fast path, many formats).
-// 2) CSV-aware pass if header looks like email/password.
-// 3) Line-by-line rescue: find emails in a line, search to the right for nearby separators; if not found, log as error.
+/* CSV header detect */
+const CSV_HEAD = /(^|,|\t|\s)(email|e-mail|username)\b.*(,|\t|\s)(pass(word)?|pwd)\b/i;
 
 async function parseText(text, source){
-  let localFound = 0;
-  // 1) Global regex sweep
-  let m;
-  while((m = PAIR_RE.exec(text)) !== null){
-    const email = m[2].trim();
-    const pass = (m[4]||'').trim();
-    if(!email) continue;
-    const valid = isValidEmail(email);
-    if(!pass){ errors.push({source, line:null, content:`${email}`, reason:'empty password after separator'}); continue; }
-    pairs.push({id:idSeq++, email, pass, valid, selected:false, source});
-    localFound++;
+  let foundHere = 0;
+  // 1) Global strict sweep
+  for (const re of [STRICT_LINE, STRICT_LINE_SP]) {
+    re.lastIndex = 0;
+    let m; 
+    while((m = re.exec(text)) !== null){
+      const email = m[1].trim();
+      const pass = m[2].trim(); // already alnum-only by regex
+      if(!email || !pass) continue;
+      const valid = isValidEmail(email);
+      pushPair(email, pass, valid, source);
+      foundHere++;
+    }
   }
 
-  // 2) CSV-ish
-  if(CSV_HEADER_RE.test(text.slice(0, 4096))){ // check in early chunk
+  // 2) CSV mode
+  if(CSV_HEAD.test(text.slice(0,4096))){
     const lines = text.split(/\r?\n/);
-    let header = lines[0].split(/,|\t/).map(s=>s.trim().toLowerCase());
+    const header = (lines[0]||'').split(/,|\t/).map(s=>s.trim().toLowerCase());
     const ei = header.findIndex(h=>/^(email|e-mail|username)$/.test(h));
     const pi = header.findIndex(h=>/^(pass(word)?|pwd)$/.test(h));
     if(ei>-1 && pi>-1){
       for(let i=1;i<lines.length;i++){
         const cols = lines[i].split(/,|\t/);
         if(cols.length<=Math.max(ei,pi)) continue;
-        const email = (cols[ei]||'').trim().replace(/^"|"$/g,'');
-        const pass = (cols[pi]||'').trim().replace(/^"|"$/g,'');
+        let email = (cols[ei]||'').trim().replace(/^"|"$/g,'');
+        let pass = (cols[pi]||'').trim().replace(/^"|"$/g,'');
         if(!email) continue;
+        // enforce alnum-only pass
+        const mpass = pass.match(/[A-Za-z0-9]+/);
+        pass = mpass ? mpass[0] : '';
+        if(!pass){ errors.push({source,line:i+1,content:lines[i],reason:'empty/non-alnum password (CSV)'}); continue; }
         const valid = isValidEmail(email);
-        if(!pass){ errors.push({source, line:i+1, content:lines[i], reason:'csv empty password'}); continue; }
-        pairs.push({id:idSeq++, email, pass, valid, selected:false, source});
-        localFound++;
+        pushPair(email, pass, valid, source);
+        foundHere++;
       }
     }
   }
 
-  // 3) Line-by-line rescue & error logging
+  // 3) Rescue: if line has email but no strict pair, try grab nearest alnum token after ":" and log sanitization
   const lines = text.split(/\r?\n/);
   for(let i=0;i<lines.length;i++){
     const L = lines[i];
-    if(!L || !EMAIL_RE.test(L)) continue;
-    // check if this line already yielded pairs via fast path: skip if so
-    // (rough heuristic: if it includes ":", "=", "-", ",", ";" we’ll still try; duplicates removed later)
-    const emails = L.match(new RegExp(EMAIL_RE, 'g')) || [];
-    for(const raw of emails){
-      const email = raw.trim();
-      const idx = L.indexOf(email);
-      const after = L.slice(idx + email.length);
-      // try to grab right-adjacent password
-      const sep = after.match(/^\s*(?::|=|-|,|;|\t)\s*(.+)$/);
-      if(sep && sep[1]){
-        let pass = sep[1].trim();
-        // cut off trailing decorations
-        pass = pass.replace(/\s*(,|;|\||\/\/|#).*$/, '').trim();
-        if(pass.length===0){ errors.push({source,line:i+1,content:L,reason:'empty password after separator'}); continue; }
+    if(!L) continue;
+    const emails = L.match(new RegExp(EMAIL, 'g')) || [];
+    for(const em of emails){
+      // ignore leading numbering like "3651." by not using left side
+      // look to the right of email for ":" or "=" then alnum token
+      const idx = L.indexOf(em);
+      const tail = L.slice(idx + em.length);
+      const m = tail.match(/^\s*[:=]\s*([A-Za-z0-9]+)/);
+      if(m){
+        const email = em.trim();
+        const pass = m[1].trim();
         const valid = isValidEmail(email);
-        pairs.push({id:idSeq++, email, pass, valid, selected:false, source});
-        localFound++;
+        pushPair(email, pass, valid, source);
+        foundHere++;
       } else {
-        // no adjacent separator → error
-        errors.push({source, line:i+1, content:L, reason:'email without adjacent password'});
+        // got email but no acceptable pass → error
+        errors.push({source,line:i+1,content:L,reason:'email without strict pass'});
       }
     }
   }
-  return localFound;
+
+  return foundHere;
 }
 
-/* ================== Processing loop ================== */
-async function processQueue(){
-  if(processing) return;
-  if(!confirmCheckbox.checked){ alert('Please confirm permission to process these files.'); return; }
-  processing = true; stopRequested = false; playBtn.disabled=true; stopBtn.disabled=false;
-  const total = queuedFiles.length; let done = 0;
-  for(const f of queuedFiles){
-    if(stopRequested) break;
-    const st = document.getElementById('status-'+f._id); if(st) st.textContent='reading...';
+/* Push with cleaning: strip trailing junk from pass (already alnum), ensure output is email:pass only */
+function pushPair(email, pass, valid, source){
+  // clean obvious tails like "=> =>" by regex choice; also trim whitespace
+  email = email.trim();
+  pass  = pass.trim();
+
+  // build object
+  const obj = {id:seq++, email, pass, valid, selected:false, source};
+  pairs.push(obj);
+}
+
+/* Pro de-dupe */
+function dedupe(){
+  const seen = new Set();
+  const out = [];
+  for(const p of pairs){
+    const k = keyFor(p);
+    if(!seen.has(k)){ seen.add(k); out.push(p); }
+  }
+  pairs = out;
+}
+
+/* ===== Queue & IO ===== */
+drop.addEventListener('click', ()=> filesEl.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', e => { e.preventDefault(); drop.classList.remove('drag'); });
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag'); addFiles([...e.dataTransfer.files||[]]); });
+filesEl.addEventListener('change', e => addFiles([...e.target.files]));
+
+function addFiles(arr){
+  for(const f of arr){ f._id = Math.random().toString(36).slice(2,10)+Date.now().toString(36); q.push(f); }
+  renderQueue();
+}
+function renderQueue(){ queueEl.innerHTML = q.map(f=>`<div class="file"><strong>${esc(f.name)}</strong> <span style="float:right" id="st-${f._id}">queued</span></div>`).join(''); }
+function readText(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(f); }); }
+
+/* ===== Controls ===== */
+play.addEventListener('click', async ()=>{
+  if(running) return;
+  if(!ok.checked){ alert('Please confirm permission.'); return; }
+  if(q.length===0){ alert('No files queued.'); return; }
+  running = true; stopReq=false; play.disabled=true; stopBtn.disabled=false;
+  const total = q.length; let done=0;
+  for(const f of q){
+    if(stopReq) break;
+    const st = document.getElementById(`st-${f._id}`); if(st) st.textContent='reading...';
     try{
       const txt = await readText(f);
       if(st) st.textContent='parsing...';
@@ -357,81 +326,70 @@ async function processQueue(){
       if(st) st.textContent='done';
     }catch(e){
       if(st) st.textContent='error';
-      errors.push({source:f.name, line:null, content:'<file read failed>', reason:String(e)});
-      console.error(e);
+      errors.push({source:f.name,line:null,content:'<read failed>',reason:String(e)});
     }
-    done++; overallProgress.style.width = (done/total*100)+'%';
-    renderCounts(); renderNeon();
-    await new Promise(r=>setTimeout(r,160));
+    done++; prog.style.width = (done/total*100)+'%';
+    if(dedupeChk.checked) dedupe();
+    counts(); render();
+    await new Promise(r=>setTimeout(r,120));
   }
-  processing=false; stopRequested=false; playBtn.disabled=false; stopBtn.disabled=true;
-  queuedFiles = []; renderFileList();
-  if(removeDup.checked) dedupe();
-  renderCounts(); renderNeon();
-}
-
-/* ================== Controls ================== */
-playBtn.addEventListener('click', ()=> {
-  if(queuedFiles.length===0){ alert('No files queued. Add files first.'); return; }
-  processQueue();
+  running=false; stopReq=false; play.disabled=false; stopBtn.disabled=true;
+  q=[]; renderQueue();
 });
-stopBtn.addEventListener('click', ()=> { stopRequested = true; stopBtn.disabled=true; playBtn.disabled=false; });
+stopBtn.addEventListener('click', ()=>{ stopReq=true; stopBtn.disabled=true; play.disabled=false; });
 clearBtn.addEventListener('click', ()=> {
-  if(confirm('Clear queued files, pairs, and errors?')){
-    queuedFiles=[]; pairs=[]; errors=[]; idSeq=1; renderFileList(); renderCounts(); renderNeon(); overallProgress.style.width='0%';
-  }
+  if(!confirm('Clear queue, pairs, and errors?')) return;
+  q=[]; pairs=[]; errors=[]; seq=1; prog.style.width='0%'; renderQueue(); counts(); render();
 });
-onlyValid.addEventListener('change', ()=> { renderNeon(); renderCounts(); });
-maskPass.addEventListener('change', ()=> renderNeon());
-removeDup.addEventListener('change', ()=> { if(removeDup.checked) dedupe(); renderNeon(); renderCounts(); });
 
-selectAllBtn.addEventListener('click', ()=> { for(const p of pairs) p.selected=true; renderNeon(); });
-deselectAllBtn.addEventListener('click', ()=> { for(const p of pairs) p.selected=false; renderNeon(); });
-removeSelectedBtn.addEventListener('click', ()=> {
-  const any = pairs.some(p=>p.selected); if(!any) return alert('No selected rows.');
+/* toggles */
+onlyValid.addEventListener('change', ()=>{ render(); counts(); });
+mask.addEventListener('change', render);
+dedupeChk.addEventListener('change', ()=>{ if(dedupeChk.checked) dedupe(); render(); counts(); });
+
+/* selection ops */
+selectAllBtn.addEventListener('click', ()=> { for(const p of pairs) p.selected=true; render(); });
+deselectAllBtn.addEventListener('click', ()=> { for(const p of pairs) p.selected=false; render(); });
+removeSelBtn.addEventListener('click', ()=> {
+  const any = pairs.some(p=>p.selected);
+  if(!any) return alert('No selected rows.');
   if(!confirm('Remove selected rows?')) return;
   pairs = pairs.filter(p=>!p.selected);
-  renderNeon(); renderCounts();
+  counts(); render();
 });
 
-/* ================== Exports ================== */
-function pairsList(filtered=true){
-  return pairs.filter(p => !filtered || !onlyValid.checked || p.valid);
+/* ===== Exports ===== */
+function currentList(){
+  const v = onlyValid.checked;
+  return pairs.filter(p => !v || p.valid);
 }
-downloadAllTXT.addEventListener('click', ()=> {
-  const list = pairsList(true); if(list.length===0) return alert('No pairs.');
-  const txt = list.map(p => `${p.email}:${p.pass}`).join('\n');
+dlTxt.addEventListener('click', ()=>{
+  const list = currentList(); if(list.length===0) return alert('No pairs.');
+  const txt = list.map(p=>`${p.email}:${p.pass}`).join('\n');
   const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='pairs.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
-exportCSV.addEventListener('click', ()=> {
-  const list = pairsList(true); if(list.length===0) return alert('No pairs.');
-  const csv = ['email,pass,valid,source', ...list.map(p => `"${p.email.replace(/"/g,'""')}","${p.pass.replace(/"/g,'""')}",${p.valid},"${p.source}"`)].join('\n');
+dlCsv.addEventListener('click', ()=>{
+  const list = currentList(); if(list.length===0) return alert('No pairs.');
+  const csv = ['email,pass,valid,source', ...list.map(p=>`"${p.email.replace(/"/g,'""')}","${p.pass.replace(/"/g,'""')}",${p.valid},"${p.source}"`)].join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='pairs.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
-downloadZIP.addEventListener('click', async ()=> {
-  const list = pairsList(true);
+dlZip.addEventListener('click', async ()=>{
+  const list = currentList();
   const zip = new JSZip();
-  // pairs.txt
-  zip.file('pairs.txt', list.map(p=>`${p.email}:${p.pass}`).join('\n'));
-  // pairs.csv
-  zip.file('pairs.csv', ['email,pass,valid,source', ...list.map(p => `"${p.email.replace(/"/g,'""')}","${p.pass.replace(/"/g,'""')}",${p.valid},"${p.source}"`)].join('\n'));
-  // errors.txt
-  const errTxt = errors.length
-    ? errors.map(e => `[${e.source}${e.line?':'+e.line:''}] ${e.reason} :: ${e.content}`).join('\n')
-    : 'No errors logged.';
+  zip.file('pairs.txt', list.map(p=>`${p.email}:${p.pass}`).join('\n') || ''); 
+  zip.file('pairs.csv', ['email,pass,valid,source', ...list.map(p=>`"${p.email.replace(/"/g,'""')}","${p.pass.replace(/"/g,'""')}",${p.valid},"${p.source}"`)].join('\n'));
+  const errTxt = errors.length ? errors.map(e=>`[${e.source}${e.line?':'+e.line:''}] ${e.reason} :: ${e.content}`).join('\n') : 'No errors logged.';
   zip.file('errors.txt', errTxt);
-  // summary.json
   const summary = {
     total_pairs: pairs.length,
-    total_valid: pairs.filter(p=>p.valid).length,
-    total_invalid: pairs.filter(p=>!p.valid).length,
     pairs_in_zip: list.length,
-    errors: errors.length,
-    dedupe_enabled: !!removeDup.checked,
+    valid: pairs.filter(p=>p.valid).length,
+    invalid: pairs.filter(p=>!p.valid).length,
+    dedupe: !!dedupeChk.checked,
     only_valid_filter: !!onlyValid.checked,
     timestamp: new Date().toISOString()
   };
@@ -439,16 +397,14 @@ downloadZIP.addEventListener('click', async ()=> {
   const blob = await zip.generateAsync({type:'blob'});
   saveAs(blob, 'grabbed_output.zip');
 });
-copyAll.addEventListener('click', async ()=> {
-  const list = pairsList(true); if(list.length===0) return alert('No pairs.');
-  const txt = list.map(p => `${p.email}:${p.pass}`).join('\n');
-  try{ await navigator.clipboard.writeText(txt); alert('Copied to clipboard'); } catch { prompt('Copy failed. Manual copy this:', txt); }
+copyAll.addEventListener('click', async ()=>{
+  const list = currentList(); if(list.length===0) return alert('No pairs.');
+  const txt = list.map(p=>`${p.email}:${p.pass}`).join('\n');
+  try{ await navigator.clipboard.writeText(txt); alert('Copied'); }catch{ prompt('Copy failed. Manual copy:', txt); }
 });
 
-/* ================== Boot ================== */
-function tick(){ renderCounts(); }
-setInterval(tick, 700);
-renderFileList(); renderNeon(); renderCounts();
+/* ===== Boot ===== */
+counts(); renderQueue(); render();
 </script>
 </body>
 </html>
